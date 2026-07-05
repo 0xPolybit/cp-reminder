@@ -15,6 +15,8 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
@@ -22,6 +24,8 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.concurrent.Executors
 
 /**
@@ -34,6 +38,7 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
     private val ioExecutor = Executors.newSingleThreadExecutor()
 
     private lateinit var contentGroup: LinearLayout
+    private lateinit var dayCountdown: DayCountdownView
     private lateinit var streakIcon: ImageView
     private lateinit var streakStatusText: TextView
     private lateinit var currentStreakValue: TextView
@@ -45,6 +50,14 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
     private lateinit var remindersContainer: LinearLayout
     private lateinit var noAlarmsText: TextView
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val tickCountdown = object : Runnable {
+        override fun run() {
+            updateCountdown()
+            mainHandler.postDelayed(this, COUNTDOWN_TICK_MILLIS)
+        }
+    }
+
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -54,6 +67,7 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
         requestNotificationPermissionIfNeeded()
 
         contentGroup = view.findViewById(R.id.contentGroup)
+        dayCountdown = view.findViewById(R.id.dayCountdown)
         streakIcon = view.findViewById(R.id.streakIcon)
         streakStatusText = view.findViewById(R.id.streakStatusText)
         currentStreakValue = view.findViewById(R.id.currentStreakValue)
@@ -67,7 +81,7 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
 
         view.findViewById<FloatingActionButton>(R.id.addAlarmButton).setOnClickListener { showAddAlarmDialog() }
 
-        StreakCache.load(requireContext())?.let { showStreak(it) }
+        StreakCache.load(requireContext())?.let { showStreak(it, solvedToday = null) }
     }
 
     override fun onResume() {
@@ -75,6 +89,13 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
         loadStreak()
         AlarmScheduler.rescheduleAll(requireContext())
         refreshAlarms()
+        mainHandler.removeCallbacks(tickCountdown)
+        mainHandler.post(tickCountdown)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mainHandler.removeCallbacks(tickCountdown)
     }
 
     private fun loadStreak() {
@@ -91,12 +112,13 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
 
         ioExecutor.execute {
             val result = CodeForcesApi.getStreakStatus(handle)
+            val solvedToday = CodeForcesApi.hasAcceptedToday(handle)
             activity?.runOnUiThread {
                 if (!isAdded || view == null) return@runOnUiThread
                 if (!hasDataOnScreen) setLoading(false)
                 when (result) {
                     is CodeForcesApi.StreakResult.Success -> {
-                        showStreak(result)
+                        showStreak(result, solvedToday)
                         StreakCache.save(requireContext(), result)
                     }
                     is CodeForcesApi.StreakResult.Error -> {
@@ -112,7 +134,7 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
         }
     }
 
-    private fun showStreak(data: CodeForcesApi.StreakResult.Success) {
+    private fun showStreak(data: CodeForcesApi.StreakResult.Success, solvedToday: Boolean?) {
         val now = Instant.now().epochSecond
         val timeLeftSeconds = data.deadlineEpochSeconds - now
 
@@ -129,6 +151,14 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
         streakIcon.setImageResource(if (data.safe) R.drawable.ic_check_circle else R.drawable.ic_warning)
         streakIcon.setColorFilter(accent)
 
+        dayCountdown.accentColor = accent
+        dayCountdown.totalSeconds = SECONDS_IN_DAY
+        dayCountdown.remainingSeconds = timeLeftSeconds
+        dayCountdown.centerText = getString(
+            R.string.streak_solved_count_format,
+            if (solvedToday == true) 1 else 0
+        )
+
         currentStreakValue.text = resources.getQuantityString(
             R.plurals.days, data.currentStreak, data.currentStreak
         )
@@ -140,15 +170,21 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
             getString(R.string.last_submission_ago, DurationFormat.shortLabel(requireContext(), now - last))
         } ?: getString(R.string.last_submission_none)
 
-        if (data.safe) {
-            timeLeftCell.visibility = View.INVISIBLE
-        } else {
-            timeLeftCell.visibility = View.VISIBLE
-            timeLeftValue.text = DurationFormat.shortLabel(requireContext(), timeLeftSeconds)
-        }
+        timeLeftCell.visibility = View.VISIBLE
+        timeLeftValue.text = DurationFormat.shortLabel(requireContext(), timeLeftSeconds)
 
         contentGroup.visibility = View.VISIBLE
         progressBar.visibility = View.GONE
+    }
+
+    /** Drives the countdown arc based on the local-day boundary. */
+    private fun updateCountdown() {
+        val zone = ZoneId.systemDefault()
+        val nowEpoch = Instant.now().epochSecond
+        val endOfDay = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toEpochSecond()
+        val remaining = (endOfDay - nowEpoch).coerceAtLeast(0L)
+        dayCountdown.totalSeconds = SECONDS_IN_DAY
+        dayCountdown.remainingSeconds = remaining
     }
 
     private fun setLoading(loading: Boolean) {
@@ -245,5 +281,7 @@ class StreakFragment : Fragment(R.layout.fragment_streak) {
 
     private companion object {
         const val SAFE_WARNING_THRESHOLD_SECONDS = 6 * 3_600L
+        const val COUNTDOWN_TICK_MILLIS = 30_000L
+        const val SECONDS_IN_DAY = 24L * 3_600
     }
 }

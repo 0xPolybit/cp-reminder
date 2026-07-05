@@ -60,6 +60,7 @@
     <string name="streak_danger">Oh, no!</string>
     <string name="streak_error">Couldn\'t load your streak. Pull to retry or check your connection</string>
     <string name="streak_refresh_error">Couldn\'t refresh streak data</string>
+    <string name="streak_solved_count_format">%1$d/1</string>
     <string name="stat_current_streak">Current Streak</string>
     <string name="stat_max_streak">Max Streak</string>
     <string name="stat_last_submission">Last Submission</string>

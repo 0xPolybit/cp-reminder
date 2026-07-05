@@ -31,22 +31,34 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <ImageView
-                    android:id="@+id/streakIcon"
-                    android:layout_width="72dp"
-                    android:layout_height="72dp"
-                    android:layout_marginBottom="16dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    tools:src="@drawable/ic_warning" />
+                <FrameLayout
+                    android:layout_width="160dp"
+                    android:layout_height="160dp">
+
+                    <com.example.cpreminder.DayCountdownView
+                        android:id="@+id/dayCountdown"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <ImageView
+                        android:id="@+id/streakIcon"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        tools:src="@drawable/ic_check_circle" />
+
+                </FrameLayout>
 
                 <TextView
                     android:id="@+id/streakStatusText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
                     android:gravity="center"
                     android:textAppearance="?attr/textAppearanceHeadline4"
-                    tools:text="Oh, no!" />
+                    tools:text="You're good" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
