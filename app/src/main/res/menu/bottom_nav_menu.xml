@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/tab_streak"
+        android:icon="@drawable/ic_fire"
+        android:title="@string/tab_streak" />
+
+    <item
+        android:id="@+id/tab_contests"
+        android:icon="@drawable/ic_trophy"
+        android:title="@string/tab_contests" />
+
+    <item
+        android:id="@+id/tab_friends"
+        android:icon="@drawable/ic_people"
+        android:title="@string/tab_friends" />
+
+    <item
+        android:id="@+id/tab_profile"
+        android:icon="@drawable/ic_person"
+        android:title="@string/tab_profile" />
+
+</menu>
